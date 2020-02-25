@@ -134,10 +134,10 @@ def main():
 
 def read_pickle():
 
-    content = "This is Limelight, a bot designed to help Sam learn some words! Here are his 5 random daily words previously highlighted.\n\n"
-    content += "Reply to this email describing any bugs observed :) and reply STOP to unsubscribe.\n"
-    content += "https://github.com/Donald247/Kindle_Limelight\n"
+    content = "This is Limelight, a bot designed to help Sam learn some words! Here are his 5 random daily words previously highlighted.\n"
+    content += "Have a wonderful day!\n\n"
     content += '---------------------------------------------------------------------------------------------\n\n'
+
     data = pickle.load(open("notebook.p", "rb" ))
     definition_list = []
     for highlight in data.data:
@@ -150,7 +150,7 @@ def read_pickle():
     print(ids)
 
     # Maunual overwrite for some nice definitions to test
-    ids = [9, 37, 32, 1, 34]
+    ids = [8, 37, 19, 3, 34]
     selected = list(definition_list[i] for i in ids)
     for defintion in selected:
         content = content + ("Book: {}\nAuthor: {}\nHighlight: {}\nDefinition: {}\nExample: {}\n\n".format(defintion.book_title,
@@ -158,6 +158,11 @@ def read_pickle():
                                                                                               defintion.highlight,
                                                                                               defintion.definition,
                                                                                               defintion.example))
+
+    content += '---------------------------------------------------------------------------------------------\n\n'
+    content += "Reply to this email describing any bugs observed :) and reply STOP to unsubscribe.\n"
+    content += "https://github.com/Donald247/Kindle_Limelight\n\n"
+    content += '---------------------------------------------------------------------------------------------\n\n'
 
     content = content.encode('ascii', 'ignore').decode('ascii')
     send_email(content)
@@ -172,8 +177,8 @@ def send_email(content):
     smtp_server = "smtp.gmail.com"
     sender_email = "kindlelimelight@gmail.com"  # Enter your address
     password = 'limelight23'
-    receiver_email = ["sdonald.uc@gmail.com","sdonald.uc@gmail.com"]  # Enter receiver address
-    message = 'Subject: {}\n\n{}'.format('Daily Limelight Definitions!', content)
+    receiver_email = ["sdonald.uc@gmail.com "]  # Enter receiver address
+    message = 'Subject: {}\n\n{}'.format('Daily Limelight Definitions', content)
 
     context = ssl.create_default_context()
 
