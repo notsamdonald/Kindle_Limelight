@@ -1,6 +1,8 @@
 import requests
 import json
 import pickle
+import sys
+
 
 DIR = 'F:\documents\My Clippings.txt'
 
@@ -131,11 +133,56 @@ def main():
         print('Failed to read')
 
 def read_pickle():
+
+    content = "This is Limelight, a bot designed to help Sam learn some words! Here are his 5 random daily words previously highlighted.\n\n"
+    content += "Reply to this email describing any bugs observed :) and reply STOP to unsubscribe.\n"
+    content += "https://github.com/Donald247/Kindle_Limelight\n"
+    content += '---------------------------------------------------------------------------------------------\n\n'
     data = pickle.load(open("notebook.p", "rb" ))
+    definition_list = []
+    for highlight in data.data:
+        if highlight.valid_word and highlight.valid and highlight.highlight_type == "Word":
+            definition_list.append(highlight)
+    import random
+
+    definition_num = 5
+    ids = random.sample(range(1, len(definition_list)), definition_num)
+    print(ids)
+
+    # Maunual overwrite for some nice definitions to test
+    ids = [9, 37, 32, 1, 34]
+    selected = list(definition_list[i] for i in ids)
+    for defintion in selected:
+        content = content + ("Book: {}\nAuthor: {}\nHighlight: {}\nDefinition: {}\nExample: {}\n\n".format(defintion.book_title,
+                                                                                              defintion.book_author,
+                                                                                              defintion.highlight,
+                                                                                              defintion.definition,
+                                                                                              defintion.example))
+
+    content = content.encode('ascii', 'ignore').decode('ascii')
+    send_email(content)
+
     print('wait')
 
 
-read_pickle()
+def send_email(content):
+    import smtplib, ssl
 
+    port = 465  # For SSL
+    smtp_server = "smtp.gmail.com"
+    sender_email = "kindlelimelight@gmail.com"  # Enter your address
+    password = 'limelight23'
+    receiver_email = ["sdonald.uc@gmail.com","sdonald.uc@gmail.com"]  # Enter receiver address
+    message = 'Subject: {}\n\n{}'.format('Daily Limelight Definitions!', content)
+
+    context = ssl.create_default_context()
+
+
+    with smtplib.SMTP_SSL(smtp_server, port, context=context) as server:
+        server.login(sender_email, password)
+        for email in receiver_email:
+            server.sendmail(sender_email, email, message)
+
+read_pickle()
 #main()
 
