@@ -2,9 +2,11 @@ import requests
 import json
 import pickle
 import sys
+import pandas as pd
 
 
-DIR = 'F:\documents\My Clippings.txt'
+DIR = 'G:\documents\My Clippings.txt'
+SEND_EMAIL = False
 
 # https://realpython.com/instance-class-and-static-methods-demystified/
 
@@ -25,14 +27,19 @@ class Highlights:
         self.lines = raw_string.split('\n')[1+offset:-1]  # Discarding the quotation marks from text file
 
         self.valid = True if len(self.lines) == 4 else False
+
+        global unpickled_df
+        unpickled_df = pd.read_pickle("./WordData")
+
         if self.valid:
-            # Continue with data processing if valid number of data points identified to minimize junk
-            self.raw_book_string = self.lines[0]
-            self.raw_highlight_info = self.lines[1]
-            self.raw_highlight = self.lines[3]
-            self.process_raw_book_string(self.raw_book_string)
-            self.process_raw_highlighted_info(self.raw_highlight_info)
-            self.process_raw_highlight(self.raw_highlight)
+            if not any(unpickled_df['Raw String'] == self.raw_string):
+                # Continue with data processing if valid number of data points identified to minimize junk
+                self.raw_book_string = self.lines[0]
+                self.raw_highlight_info = self.lines[1]
+                self.raw_highlight = self.lines[3]
+                self.process_raw_book_string(self.raw_book_string)
+                self.process_raw_highlighted_info(self.raw_highlight_info)
+                self.process_raw_highlight(self.raw_highlight)
 
     def process_raw_book_string(self, raw_book_string):
         self.book_author = self.find_between(string=raw_book_string, start="(", end=")")
@@ -55,14 +62,17 @@ class Highlights:
             self.highlight_type = "Quote"
         else:
             self.highlight_type = "Word"
-            self.process_word()
+            if not any(unpickled_df['Raw String'] == self.raw_string):
+                self.process_word()
+            else:
+                self.valid_word = False
 
     def process_word(self):
         strip_chars = ['.', ',', ':', ';', ' ']  # Chars to be removed from single words (to ease definition lookup)
         for character in strip_chars:
             self.highlight = self.highlight.replace(character, '')
         self.highlight = self.highlight.capitalize()
-        print(self.highlight)
+        #print(self.highlight)
         self.oxford_dictionary(self.highlight)
 
     def oxford_dictionary(self, word):
@@ -80,13 +90,16 @@ class Highlights:
         # print("json \n" + json.dumps(r.json()))
         if r.status_code == 404:
             self.valid_word = False
+            print('404')
         else:
             self.valid_word = True
             try:
                 self.definition = r.json()['results'][0]['lexicalEntries'][0]['entries'][0]['senses'][0]['definitions'][0]
                 self.example = r.json()['results'][0]['lexicalEntries'][0]['entries'][0]['senses'][0]['examples'][0]['text']
+                print(self.definition)
             except:
                 self.valid_word = False
+
 
     @staticmethod
     def find_between(string, start, end):
@@ -105,7 +118,10 @@ class NoteBook:
     def update(self, new_data):
         self.data.extend(new_data)
 
+
 def main():
+
+    data = pickle.load(open("notebook.p", "rb" ))
 
     f = open(DIR, "r", encoding="utf8")
     if f.mode == 'r':
@@ -118,7 +134,8 @@ def main():
             higlight_list.append(Highlights(highlight_string, i))
 
         for highlight in higlight_list:
-            if highlight.valid and highlight.highlight_type == 'Word' and highlight.valid_word:
+            data.data.append(highlight)
+            if highlight.valid and highlight.highlight_type == 'Word' and highlight.valid_word and False:
                 print("Book:{}\nAuthor:{}\nHighlight:{}\nDefinition:{}\nExample:{}\n".format(highlight.book_title,
                                                                                highlight.book_author,
                                                                                highlight.highlight,
@@ -126,11 +143,13 @@ def main():
                                                                                highlight.example))
 
         notebookObj = NoteBook(higlight_list)
-        pickle.dump(notebookObj, open("notebook.p", "wb"))
+
+        pickle.dump(data, open("notebook.p", "wb"))
         print('Complete')
 
     else:
         print('Failed to read')
+
 
 def read_pickle():
 
@@ -143,31 +162,35 @@ def read_pickle():
     for highlight in data.data:
         if highlight.valid_word and highlight.valid and highlight.highlight_type == "Word":
             definition_list.append(highlight)
-    import random
 
-    definition_num = 5
-    ids = random.sample(range(1, len(definition_list)), definition_num)
-    print(ids)
 
-    # Maunual overwrite for some nice definitions to test
-    ids = [8, 37, 19, 3, 34]
-    selected = list(definition_list[i] for i in ids)
-    for defintion in selected:
-        content = content + ("Book: {}\nAuthor: {}\nHighlight: {}\nDefinition: {}\nExample: {}\n\n".format(defintion.book_title,
-                                                                                              defintion.book_author,
-                                                                                              defintion.highlight,
-                                                                                              defintion.definition,
-                                                                                              defintion.example))
 
-    content += '---------------------------------------------------------------------------------------------\n\n'
-    content += "Reply to this email describing any bugs observed :) and reply STOP to unsubscribe.\n"
-    content += "https://github.com/Donald247/Kindle_Limelight\n\n"
-    content += '---------------------------------------------------------------------------------------------\n\n'
 
-    content = content.encode('ascii', 'ignore').decode('ascii')
-    send_email(content)
+    if SEND_EMAIL:
+        import random
 
-    print('wait')
+        definition_num = 5
+        ids = random.sample(range(1, len(definition_list)), definition_num)
+        print(ids)
+
+        # Maunual overwrite for some nice definitions to test
+        ids = [8, 37, 19, 3, 34]
+        selected = list(definition_list[i] for i in ids)
+        for defintion in selected:
+            content = content + ("Book: {}\nAuthor: {}\nHighlight: {}\nDefinition: {}\nExample: {}\n\n".format(defintion.book_title,
+                                                                                                  defintion.book_author,
+                                                                                                  defintion.highlight,
+                                                                                                  defintion.definition,
+                                                                                                  defintion.example))
+
+        content += '---------------------------------------------------------------------------------------------\n\n'
+        content += "Reply to this email describing any bugs observed :) and reply STOP to unsubscribe.\n"
+        content += "https://github.com/Donald247/Kindle_Limelight\n\n"
+        content += '---------------------------------------------------------------------------------------------\n\n'
+
+        content = content.encode('ascii', 'ignore').decode('ascii')
+        send_email(content)
+
 
 
 def send_email(content):
@@ -176,7 +199,7 @@ def send_email(content):
     port = 465  # For SSL
     smtp_server = "smtp.gmail.com"
     sender_email = "kindlelimelight@gmail.com"  # Enter your address
-    password = 'limelight23'
+    password = 'limelight23'  # Don't take this >:(
     receiver_email = ["sdonald.uc@gmail.com "]  # Enter receiver address
     message = 'Subject: {}\n\n{}'.format('Daily Limelight Definitions', content)
 
@@ -188,6 +211,22 @@ def send_email(content):
         for email in receiver_email:
             server.sendmail(sender_email, email, message)
 
-read_pickle()
+#read_pickle()
 #main()
 
+data = pickle.load(open("notebook.p", "rb" ))
+
+to_save_to_np = []
+for highlight in data.data:
+    if highlight.highlight_type == 'Word' and highlight.highlight is not None:
+        if highlight.definition is not None:
+            to_save_to_np.append([highlight.raw_string, highlight.highlight, highlight.definition,highlight.example, highlight.book_title, highlight.book_author, True])
+        else:
+            to_save_to_np.append([highlight.raw_string, highlight.highlight, highlight.definition,highlight.example, highlight.book_title, highlight.book_author, False])
+
+df = pd.DataFrame(to_save_to_np, columns=['Raw String','Word','Definition','Example','Book','Author', 'Valid Definition'])
+
+df.to_pickle('WordData')
+print(df.Word.to_string(index=False))
+
+print("done")
